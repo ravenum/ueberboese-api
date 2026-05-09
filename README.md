@@ -1,12 +1,18 @@
 # Überböse Api 🔈🎶
 **Überböse:** /ˈyːbɐˌbøːzə/ *(german) adjective - extremely or supremely evil; beyond ordinary wickedness.*
 
-Bose has announced the end of life for its consumer streaming boxes called SoundTouch ☹️
-This will render millions of completely working streaming boxes useless.
+Bose has stopped supporting its consumer streaming boxes called SoundTouch on May 6, 2026 ☹️
+This renders millions of completely working streaming boxes useless.
 
-The aim of this project is to make sure that SoundTouch boxes can still be used for a long time.
+From their last [announcement](https://www.bose.com/soundtouch-end-of-life):
+> What no longer works:
+>
+>- Presets (preset buttons on the product and in the app)
+>- Browsing or playing music services directly from the SoundTouch app
+>- Stereo pairing for SoundTouch 10
 
-The idea to achieve that is to reverse-engineer and rebuild the Bose streaming HTTP API.
+
+This projects helps you overcome these limitations with a self-hosted server that replaces the Bose streaming HTTP API.
 
 ## Documentation
 
@@ -29,6 +35,11 @@ With the Überböse Api and the
 - change presets to other Spotify, TuneIn, and internet radio stations
 - create multi room zones
 - create and change stereo pairs
+
+This has been tested on:
+- SoundTouch 10
+- SoundTouch 20
+- SoundTouch 30
 
 ## Installation
 
