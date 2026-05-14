@@ -411,6 +411,22 @@ paths:
                     error: "Internal server error"
                     message: "Failed to retrieve device events"
 
+  /mgmt/radio-reports:
+    get:
+      summary: Get all radio stream reports
+      description: |
+        Retrieves all stored TuneIn analytics reports grouped by listen session (listenId).
+      operationId: getRadioReports
+      tags:
+        - Event Management
+      responses:
+        '200':
+          description: Successfully retrieved radio reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RadioReports'
+
 components:
   schemas:
     Error:
@@ -523,6 +539,55 @@ components:
           type: string
           description: Event type identifier
           example: "source-state-changed"
+
+    RadioReportEvent:
+      type: object
+      properties:
+        timeStamp:
+          type: string
+          example: "2026-05-14T19:07:24+0000"
+        eventType:
+          type: string
+          example: "START"
+        reason:
+          type: string
+          example: "USER_SELECT_PLAYABLE"
+        reasonSubCode:
+          type: string
+        timeIntoTrack:
+          type: integer
+          example: 0
+        playbackDelay:
+          type: integer
+          example: 3324
+
+    RadioReportSession:
+      type: object
+      properties:
+        listenId:
+          type: string
+          example: "1778785642097"
+        stationId:
+          type: string
+          example: "s80044"
+        stationName:
+          type: string
+          example: "Radio TEDDY"
+        logoUrl:
+          type: string
+          example: "https://cdn-radiotime-logos.tunein.com/s80044q.png"
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/RadioReportEvent'
+
+    RadioReports:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RadioReportSession'
 
 tags:
   - name: Spotify Management

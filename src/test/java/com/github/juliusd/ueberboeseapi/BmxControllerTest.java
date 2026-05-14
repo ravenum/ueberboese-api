@@ -4,19 +4,33 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import com.github.juliusd.ueberboeseapi.bmx.report.RadioReportEvent;
+import com.github.juliusd.ueberboeseapi.bmx.report.RadioReportStorageService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class BmxControllerTest extends TestBase {
 
+  @Autowired private RadioReportStorageService radioReportStorageService;
+
   private static WireMockServer wireMockServer;
+
+  @BeforeEach
+  void clearReports() {
+    radioReportStorageService.clearAll();
+  }
 
   @BeforeAll
   static void setupWireMock() {
@@ -301,7 +315,7 @@ class BmxControllerTest extends TestBase {
     given()
         .auth()
         .preemptive()
-        .basic("admin", "change_me!")
+        .basic("admin", "test-password-123")
         .contentType("application/json")
         .queryParam("stream_id", "test123")
         .queryParam("guide_id", "s80044")
@@ -330,7 +344,7 @@ class BmxControllerTest extends TestBase {
     given()
         .auth()
         .preemptive()
-        .basic("admin", "change_me!")
+        .basic("admin", "test-password-123")
         .contentType("application/json")
         .queryParam("stream_id", "test123")
         .queryParam("guide_id", "s80044")
@@ -360,7 +374,7 @@ class BmxControllerTest extends TestBase {
     given()
         .auth()
         .preemptive()
-        .basic("admin", "change_me!")
+        .basic("admin", "test-password-123")
         .contentType("application/json")
         .queryParam("stream_id", "e3342")
         .queryParam("guide_id", "s288368")
@@ -382,6 +396,262 @@ class BmxControllerTest extends TestBase {
         .statusCode(200)
         .contentType("application/json")
         .body("nextReportIn", notNullValue());
+  }
+
+  @Test
+  void reportTuneInAnalytics_shouldStoreReport() {
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .queryParam("stream_id", "e3342")
+        .queryParam("guide_id", "s80044")
+        .queryParam("listen_id", "1778563508680")
+        .queryParam("stream_type", "liveRadio")
+        .body(
+            """
+            {
+              "timeStamp": "2026-05-13T09:01:19+0000",
+              "eventType": "START",
+              "reason": "USER_SELECT_PLAYABLE",
+              "timeIntoTrack": 0,
+              "playbackDelay": 3324
+            }
+            """)
+        .when()
+        .post("/bmx/tunein/v1/report")
+        .then()
+        .statusCode(200);
+
+    Map<String, List<RadioReportEvent>> stored = radioReportStorageService.getAllByListenId();
+    assertThat(stored).hasSize(1);
+    List<RadioReportEvent> session = stored.get("1778563508680");
+    assertThat(session).hasSize(1);
+    RadioReportEvent report = session.getFirst();
+    assertThat(report.eventType()).isEqualTo(RadioReportEvent.EventType.START);
+    assertThat(report.reason()).isEqualTo("USER_SELECT_PLAYABLE");
+    assertThat(report.timeIntoTrack()).isEqualTo(0);
+    assertThat(report.playbackDelay()).isEqualTo(3324);
+  }
+
+  @Test
+  void reportTuneInAnalytics_shouldStoreMultipleReportsPerSession() {
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .queryParam("stream_id", "e3342")
+        .queryParam("guide_id", "s80044")
+        .queryParam("listen_id", "1778785642097")
+        .queryParam("stream_type", "liveRadio")
+        .body(
+            """
+            {
+              "timeStamp": "2026-05-14T19:07:24+0000",
+              "eventType": "START",
+              "reason": "USER_SELECT_PLAYABLE",
+              "timeIntoTrack": 0,
+              "playbackDelay": 3324
+            }
+            """)
+        .when()
+        .post("/bmx/tunein/v1/report")
+        .then()
+        .statusCode(200);
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .queryParam("stream_id", "e3342")
+        .queryParam("guide_id", "s80044")
+        .queryParam("listen_id", "1778785642097")
+        .queryParam("stream_type", "liveRadio")
+        .body(
+            """
+            {
+              "timeStamp": "2026-05-14T19:07:26+0000",
+              "eventType": "STOP",
+              "reason": "USER_STOP",
+              "timeIntoTrack": 2,
+              "playbackDelay": 0
+            }
+            """)
+        .when()
+        .post("/bmx/tunein/v1/report")
+        .then()
+        .statusCode(200);
+
+    Map<String, List<RadioReportEvent>> stored = radioReportStorageService.getAllByListenId();
+    assertThat(stored).hasSize(1);
+    List<RadioReportEvent> session = stored.get("1778785642097");
+    assertThat(session).hasSize(2);
+    assertThat(session.get(0).eventType()).isEqualTo(RadioReportEvent.EventType.START);
+    assertThat(session.get(1).eventType()).isEqualTo(RadioReportEvent.EventType.STOP);
+  }
+
+  @Test
+  void getRadioReports_shouldReturnStoredReportsGroupedByListenId() {
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .queryParam("stream_id", "e3342")
+        .queryParam("guide_id", "s80044")
+        .queryParam("listen_id", "1778785642097")
+        .queryParam("stream_type", "liveRadio")
+        .body(
+            """
+            {"timeStamp":"2026-05-14T19:07:24+0000","eventType":"START","reason":"USER_SELECT_PLAYABLE","timeIntoTrack":0,"playbackDelay":3324}
+            """)
+        .when()
+        .post("/bmx/tunein/v1/report")
+        .then()
+        .statusCode(200);
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .queryParam("stream_id", "e3342")
+        .queryParam("guide_id", "s80044")
+        .queryParam("listen_id", "1778785642097")
+        .queryParam("stream_type", "liveRadio")
+        .body(
+            """
+            {"timeStamp":"2026-05-14T19:07:26+0000","eventType":"STOP","reason":"USER_STOP","timeIntoTrack":2,"playbackDelay":0}
+            """)
+        .when()
+        .post("/bmx/tunein/v1/report")
+        .then()
+        .statusCode(200);
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .when()
+        .get("/mgmt/radio-reports")
+        .then()
+        .statusCode(200)
+        .body("sessions", hasSize(1))
+        .body("sessions[0].listenId", equalTo("1778785642097"))
+        .body("sessions[0].events", hasSize(2))
+        .body("sessions[0].events[0].eventType", equalTo("START"))
+        .body("sessions[0].events[0].reason", equalTo("USER_SELECT_PLAYABLE"))
+        .body("sessions[0].events[1].eventType", equalTo("STOP"))
+        .body("sessions[0].events[1].reason", equalTo("USER_STOP"));
+  }
+
+  @Test
+  void getRadioReports_shouldIncludeStationMetadataWhenSessionWasStarted() {
+    wireMockServer.stubFor(
+        WireMock.get(urlEqualTo("/describe.ashx?id=s80044"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withBody(
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <opml version="1"><head><status>200</status></head>
+                          <body><outline type="object" text="Radio TEDDY">
+                            <station>
+                              <name>Radio TEDDY</name>
+                              <logo>https://cdn-radiotime-logos.tunein.com/s80044q.png</logo>
+                            </station>
+                          </outline></body>
+                        </opml>""")));
+    wireMockServer.stubFor(
+        WireMock.get(urlEqualTo("/Tune.ashx?id=s80044"))
+            .willReturn(aResponse().withStatus(200).withBody("https://stream.example.com/radio1")));
+
+    String reportingHref =
+        given()
+            .contentType("application/json")
+            .when()
+            .get("/bmx/tunein/v1/playback/station/s80044")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
+            .getString("_links.bmx_reporting.href");
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .contentType("application/json")
+        .body(
+            """
+            {"timeStamp":"2026-05-14T19:07:24+0000","eventType":"START","reason":"USER_SELECT_PLAYABLE","timeIntoTrack":0,"playbackDelay":3324}
+            """)
+        .when()
+        .post("/bmx/tunein" + reportingHref)
+        .then()
+        .statusCode(200);
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .when()
+        .get("/mgmt/radio-reports")
+        .then()
+        .statusCode(200)
+        .body("sessions", hasSize(1))
+        .body("sessions[0].stationId", equalTo("s80044"))
+        .body("sessions[0].stationName", equalTo("Radio TEDDY"))
+        .body("sessions[0].logoUrl", equalTo("https://cdn-radiotime-logos.tunein.com/s80044q.png"))
+        .body("sessions[0].events", hasSize(1))
+        .body("sessions[0].events[0].eventType", equalTo("START"));
+  }
+
+  @Test
+  void getRadioReports_shouldShowSessionWithNoEventsWhenPlaybackStartedButNoReportReceived() {
+    wireMockServer.stubFor(
+        WireMock.get(urlEqualTo("/describe.ashx?id=s80044"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withBody(
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <opml version="1"><head><status>200</status></head>
+                          <body><outline type="object" text="Radio TEDDY">
+                            <station>
+                              <name>Radio TEDDY</name>
+                              <logo>https://cdn-radiotime-logos.tunein.com/s80044q.png</logo>
+                            </station>
+                          </outline></body>
+                        </opml>""")));
+    wireMockServer.stubFor(
+        WireMock.get(urlEqualTo("/Tune.ashx?id=s80044"))
+            .willReturn(aResponse().withStatus(200).withBody("https://stream.example.com/radio1")));
+
+    given()
+        .contentType("application/json")
+        .when()
+        .get("/bmx/tunein/v1/playback/station/s80044")
+        .then()
+        .statusCode(200);
+
+    given()
+        .auth()
+        .preemptive()
+        .basic("admin", "test-password-123")
+        .when()
+        .get("/mgmt/radio-reports")
+        .then()
+        .statusCode(200)
+        .body("sessions", hasSize(1))
+        .body("sessions[0].stationId", equalTo("s80044"))
+        .body("sessions[0].stationName", equalTo("Radio TEDDY"))
+        .body("sessions[0].events", hasSize(0));
   }
 
   @Test

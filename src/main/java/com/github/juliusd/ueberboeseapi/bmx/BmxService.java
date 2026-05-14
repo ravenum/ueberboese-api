@@ -2,11 +2,14 @@ package com.github.juliusd.ueberboeseapi.bmx;
 
 import static tools.jackson.databind.json.JsonMapper.builder;
 
+import com.github.juliusd.ueberboeseapi.bmx.report.RadioReportEvent;
+import com.github.juliusd.ueberboeseapi.bmx.report.RadioReportStorageService;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxAudioApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxLinkApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxLinkWithClientApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxLinksApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxPlaybackResponseApiDto;
+import com.github.juliusd.ueberboeseapi.generated.dtos.BmxReportRequestApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxReportResponseApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxServiceApiDto;
 import com.github.juliusd.ueberboeseapi.generated.dtos.BmxServiceAssetsApiDto;
@@ -23,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -36,7 +40,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class BmxService {
 
   private final TuneInClient tuneInClient;
-  private final UeberboeseApiUrlProperties urlProperties;
+  private final BmxProperties urlProperties;
+  private final RadioReportStorageService radioReportStorageService;
 
   private final JsonMapper jsonMapper = builder().findAndAddModules().build();
 
@@ -325,9 +330,11 @@ public class BmxService {
     nowPlayingLink.setUseInternalClient(BmxLinkWithClientApiDto.UseInternalClientEnum.ALWAYS);
     links.setBmxNowplaying(nowPlayingLink);
 
-    // Generate IDs for reporting (these are placeholder values)
-    String streamId = "e3342";
+    String streamId = UUID.randomUUID().toString();
     String listenId = String.valueOf(System.currentTimeMillis());
+    radioReportStorageService.startSession(
+        listenId, stationId, metadata.getName(), metadata.getLogo());
+
     String reportingHref =
         String.format(
             "/v1/report?stream_id=%s&guide_id=%s&listen_id=%s&stream_type=liveRadio",
@@ -451,8 +458,21 @@ public class BmxService {
     return response;
   }
 
-  public BmxReportResponseApiDto reportAnalytics() {
+  public BmxReportResponseApiDto reportAnalytics(String listenId, BmxReportRequestApiDto report) {
     log.info("Received analytics report");
+    RadioReportEvent.EventType eventType =
+        report != null && report.getEventType() != null
+            ? RadioReportEvent.EventType.valueOf(report.getEventType().getValue())
+            : null;
+    RadioReportEvent event =
+        new RadioReportEvent(
+            report != null ? report.getTimeStamp() : null,
+            eventType,
+            report != null ? report.getReason() : null,
+            report != null ? report.getReasonSubCode() : null,
+            report != null ? report.getTimeIntoTrack() : null,
+            report != null ? report.getPlaybackDelay() : null);
+    radioReportStorageService.store(listenId, event);
 
     BmxReportResponseApiDto response = new BmxReportResponseApiDto();
     response.setNextReportIn(1800); // Report again in 30 minutes

@@ -143,7 +143,8 @@ public class BmxController implements BmxApi {
         bmxReportRequestApiDto != null ? bmxReportRequestApiDto.getEventType() : "null");
 
     try {
-      BmxReportResponseApiDto response = bmxService.reportAnalytics();
+      BmxReportResponseApiDto response =
+          bmxService.reportAnalytics(listenId, bmxReportRequestApiDto);
       return ResponseEntity.ok()
           .header("Content-Type", "application/json")
           .header("Access-Control-Allow-Origin", "*")
