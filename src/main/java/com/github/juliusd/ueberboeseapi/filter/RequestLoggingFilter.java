@@ -15,12 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 
-/**
- * Filter that logs raw request bodies for event endpoints.
- *
- * <p>This filter wraps requests with ContentCachingRequestWrapper to allow reading the request body
- * multiple times - once for logging and once for Spring's normal request processing.
- */
 @Component
 @Slf4j
 public class RequestLoggingFilter extends OncePerRequestFilter {
@@ -34,16 +28,16 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
       @NonNull FilterChain filterChain)
       throws ServletException, IOException {
 
-    // Always log request method and URI with query parameters
     String uri = request.getRequestURI();
     String queryString = request.getQueryString();
     String fullUri = queryString != null ? uri + "?" + queryString : uri;
     log.info("Request: {} {}", request.getMethod(), fullUri);
 
-    // Only wrap and log for event endpoints
-    boolean isEventReport = request.getRequestURI().matches(".*/v1/scmudc/.*");
-    if (isEventReport || request.getRequestURI().matches(".*/bmx/.+/v1/report.*")) {
-      // Wrap request with content size limit of 1MB
+    boolean isEventReport = uri.matches(".*/v1/scmudc/.*");
+    boolean isBmxReport = uri.matches(".*/bmx/.+/v1/report.*");
+    boolean isPost = "POST".equalsIgnoreCase(request.getMethod());
+
+    if (isEventReport || isBmxReport || isPost) {
       ContentCachingRequestWrapper wrappedRequest =
           new ContentCachingRequestWrapper(request, 1024 * 1024);
 
@@ -54,11 +48,15 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
       byte[] content = wrappedRequest.getContentAsByteArray();
       if (content.length > 0) {
         String rawBody = new String(content, StandardCharsets.UTF_8);
-        String type = isEventReport ? "event" : "bxm-report";
-        EVENT_LOG.info("{}: {}", type, rawBody.trim());
+        if (isEventReport) {
+          EVENT_LOG.info("event: {}", rawBody.trim());
+        } else if (isBmxReport) {
+          EVENT_LOG.info("bxm-report: {}", rawBody.trim());
+        } else if (response.getStatus() >= 400) {
+          log.warn("POST {} failed (HTTP {}): {}", uri, response.getStatus(), rawBody.trim());
+        }
       }
     } else {
-      // For non-event endpoints, proceed normally without wrapping
       filterChain.doFilter(request, response);
     }
   }
