@@ -57,11 +57,11 @@ class BmxControllerTest extends TestBase {
         .then()
         .statusCode(200)
         .contentType("application/json")
-        .body("bmx_services", hasSize(greaterThan(0)))
-        .body("bmx_services[0].id.name", notNullValue())
-        .body("bmx_services[0].baseUrl", notNullValue())
-        .body("bmx_services[0].assets.name", notNullValue())
-        .body("askAgainAfter", notNullValue())
+        .body("bmx_services", hasSize(4))
+        .body("bmx_services[0].id.name", equalTo("TUNEIN"))
+        .body("bmx_services[0].baseUrl", matchesPattern("http://localhost:\\d+/bmx/tunein"))
+        .body("bmx_services[0].assets.name", equalTo("TuneIn"))
+        .body("askAgainAfter", equalTo(1234567))
         .body("bmx_services.find { it.id.name == 'TUNEIN' }.id.value", equalTo(25))
         .body("bmx_services.find { it.id.name == 'TUNEIN' }.assets.name", equalTo("TuneIn"))
         .body("bmx_services.find { it.id.name == 'LOCAL_INTERNET_RADIO' }.id.value", equalTo(11))
@@ -80,10 +80,8 @@ class BmxControllerTest extends TestBase {
         .statusCode(200)
         .contentType("application/json")
         // Verify top-level structure
-        .body("_links", notNullValue())
-        .body("_links.bmx_services_availability", notNullValue())
         .body("_links.bmx_services_availability.href", equalTo("../servicesAvailability"))
-        .body("askAgainAfter", notNullValue())
+        .body("askAgainAfter", equalTo(1234567))
         .body("bmx_services", hasSize(4))
         // Verify TuneIn service (index 0)
         .body("bmx_services[0].id.name", equalTo("TUNEIN"))
@@ -92,20 +90,27 @@ class BmxControllerTest extends TestBase {
         .body("bmx_services[0].assets.name", equalTo("TuneIn"))
         .body("bmx_services[0].assets.color", equalTo("#000000"))
         .body("bmx_services[0].assets.description", containsString("TuneIn"))
-        .body("bmx_services[0].assets.icons.largeSvg", notNullValue())
-        .body("bmx_services[0].assets.icons.monochromePng", notNullValue())
-        .body("bmx_services[0].assets.icons.monochromeSvg", notNullValue())
-        .body("bmx_services[0].assets.icons.smallSvg", notNullValue())
-        .body("bmx_services[0].assets.icons.defaultAlbumArt", notNullValue())
+        .body(
+            "bmx_services[0].assets.icons.largeSvg",
+            matchesPattern("http://localhost:\\d+/icons/radio-logo-monochrome\\.svg"))
+        .body(
+            "bmx_services[0].assets.icons.monochromePng",
+            matchesPattern("http://localhost:\\d+/icons/radio-logo-monochrome-small\\.png"))
+        .body(
+            "bmx_services[0].assets.icons.monochromeSvg",
+            matchesPattern("http://localhost:\\d+/icons/radio-logo-monochrome\\.svg"))
+        .body(
+            "bmx_services[0].assets.icons.smallSvg",
+            matchesPattern("http://localhost:\\d+/icons/radio-logo-monochrome\\.svg"))
+        .body(
+            "bmx_services[0].assets.icons.defaultAlbumArt",
+            matchesPattern("http://localhost:\\d+/icons/radio-logo-monochrome-small\\.png"))
         .body("bmx_services[0].authenticationModel.anonymousAccount.autoCreate", equalTo(true))
         .body("bmx_services[0].authenticationModel.anonymousAccount.enabled", equalTo(true))
-        .body("bmx_services[0].baseUrl", containsString("/bmx/tunein"))
+        .body("bmx_services[0].baseUrl", matchesPattern("http://localhost:\\d+/bmx/tunein"))
         .body("bmx_services[0].streamTypes", hasItems("liveRadio", "onDemand"))
-        .body("bmx_services[0]._links.bmx_navigate", notNullValue())
         .body("bmx_services[0]._links.bmx_navigate.href", equalTo("/v1/navigate"))
-        .body("bmx_services[0]._links.bmx_token", notNullValue())
         .body("bmx_services[0]._links.bmx_token.href", equalTo("/v1/token"))
-        .body("bmx_services[0]._links.self", notNullValue())
         .body("bmx_services[0]._links.self.href", equalTo("/"))
         // Verify Custom Stations service (index 1)
         .body("bmx_services[1].id.name", equalTo("LOCAL_INTERNET_RADIO"))
@@ -116,11 +121,11 @@ class BmxControllerTest extends TestBase {
         .body("bmx_services[1].assets.description", equalTo("Custom radio stations with BMX."))
         .body("bmx_services[1].authenticationModel.anonymousAccount.autoCreate", equalTo(true))
         .body("bmx_services[1].authenticationModel.anonymousAccount.enabled", equalTo(true))
-        .body("bmx_services[1].baseUrl", containsString("/orion"))
-        .body("bmx_services[1].streamTypes", hasItem("liveRadio"))
-        .body("bmx_services[1]._links.bmx_token", notNullValue())
+        .body(
+            "bmx_services[1].baseUrl",
+            matchesPattern("http://localhost:\\d+/core02/svc-bmx-adapter-orion/prod/orion"))
+        .body("bmx_services[1].streamTypes", contains("liveRadio"))
         .body("bmx_services[1]._links.bmx_token.href", equalTo("/token"))
-        .body("bmx_services[1]._links.self", notNullValue())
         .body("bmx_services[1]._links.self.href", equalTo("/"))
         // Verify SiriusXM service (index 2)
         .body("bmx_services[2].id.name", equalTo("SIRIUSXM_EVEREST"))
@@ -128,19 +133,17 @@ class BmxControllerTest extends TestBase {
         .body("bmx_services[2].askAdapter", equalTo(false))
         .body("bmx_services[2].assets.name", equalTo("SiriusXM"))
         .body("bmx_services[2].assets.color", equalTo("#004b85"))
-        .body("bmx_services[2].assets.shortDescription", notNullValue())
+        .body("bmx_services[2].assets.shortDescription", containsString("Over 200 channels"))
         .body("bmx_services[2].authenticationModel.loginPageProvider", equalTo("BOSE"))
-        .body("bmx_services[2].signupUrl", containsString("streaming.siriusxm.com"))
+        .body(
+            "bmx_services[2].signupUrl",
+            equalTo(
+                "https://streaming.siriusxm.com/?/flepz=true&campaign=bose30#_frmAccountLookup"))
         .body("bmx_services[2].streamTypes", hasItems("liveRadio", "onDemand"))
-        .body("bmx_services[2]._links.bmx_availability", notNullValue())
         .body("bmx_services[2]._links.bmx_availability.href", equalTo("/availability"))
-        .body("bmx_services[2]._links.bmx_logout", notNullValue())
         .body("bmx_services[2]._links.bmx_logout.href", equalTo("/logout"))
-        .body("bmx_services[2]._links.bmx_navigate", notNullValue())
         .body("bmx_services[2]._links.bmx_navigate.href", equalTo("/navigate/"))
-        .body("bmx_services[2]._links.bmx_token", notNullValue())
         .body("bmx_services[2]._links.bmx_token.href", equalTo("/token"))
-        .body("bmx_services[2]._links.self", notNullValue())
         .body("bmx_services[2]._links.self.href", equalTo("/"))
         // Verify Radioplayer service (index 3)
         .body("bmx_services[3].id.name", equalTo("RADIOPLAYER"))
@@ -152,15 +155,11 @@ class BmxControllerTest extends TestBase {
         .body("bmx_services[3].authenticationModel.anonymousAccount.enabled", equalTo(true))
         .body("bmx_services[3].baseUrl", equalTo("https://boserp.radioapi.io"))
         .body("bmx_services[3].streamTypes", hasItems("liveRadio", "onDemand"))
-        .body("bmx_services[3]._links.bmx_availability", notNullValue())
         .body("bmx_services[3]._links.bmx_availability.href", equalTo("/availability"))
-        .body("bmx_services[3]._links.bmx_navigate", notNullValue())
         .body("bmx_services[3]._links.bmx_navigate.href", equalTo("/navigate"))
-        .body("bmx_services[3]._links.bmx_token", notNullValue())
         .body(
             "bmx_services[3]._links.bmx_token.href",
-            containsString("/soundtouch-msp-token-proxy/RADIOPLAYER/token"))
-        .body("bmx_services[3]._links.self", notNullValue())
+            matchesPattern("http://localhost:\\d+/soundtouch-msp-token-proxy/RADIOPLAYER/token"))
         .body("bmx_services[3]._links.self.href", equalTo("/"));
   }
 
