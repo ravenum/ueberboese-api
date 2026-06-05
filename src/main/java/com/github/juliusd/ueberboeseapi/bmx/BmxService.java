@@ -44,7 +44,6 @@ import tools.jackson.databind.json.JsonMapper;
 public class BmxService {
 
   private final TuneInClient tuneInClient;
-  private final BmxProperties urlProperties;
   private final RadioReportStorageService radioReportStorageService;
 
   private static final DateTimeFormatter REPORT_TS_FORMATTER =
@@ -58,9 +57,10 @@ public class BmxService {
   /**
    * Creates and returns the BMX services registry.
    *
+   * @param baseUrl the base URL of this server as seen by the client (e.g. http://192.168.1.1:8080)
    * @return BMX services response with all service definitions
    */
-  public BmxServicesResponseApiDto getBmxServices() {
+  public BmxServicesResponseApiDto getBmxServices(String baseUrl) {
     log.debug("Building BMX services registry");
 
     // Create top-level links
@@ -71,10 +71,10 @@ public class BmxService {
     // Create services list
     List<BmxServiceApiDto> services =
         List.of(
-            createTuneInService(),
-            createLocalInternetRadioService(),
-            createSiriusXmService(),
-            createRadioplayerService());
+            createTuneInService(baseUrl),
+            createLocalInternetRadioService(baseUrl),
+            createSiriusXmService(baseUrl),
+            createRadioplayerService(baseUrl));
 
     // Build response
     BmxServicesResponseApiDto response = new BmxServicesResponseApiDto();
@@ -122,9 +122,9 @@ public class BmxService {
   }
 
   /** Creates the TuneIn service definition. */
-  private BmxServiceApiDto createTuneInService() {
+  private BmxServiceApiDto createTuneInService(String baseUrl) {
     BmxServiceIdApiDto id = new BmxServiceIdApiDto("TUNEIN", 25);
-    BmxServiceAssetsApiDto assets = extractTuneInAssets();
+    BmxServiceAssetsApiDto assets = extractTuneInAssets(baseUrl);
     Map<String, Object> authModel = createAuthModel();
 
     BmxLinksApiDto serviceLinks = new BmxLinksApiDto();
@@ -136,7 +136,7 @@ public class BmxService {
         new BmxServiceApiDto(
             assets,
             authModel,
-            urlProperties.baseUrl() + "/bmx/tunein",
+            baseUrl + "/bmx/tunein",
             id,
             List.of(
                 BmxServiceApiDto.StreamTypesEnum.LIVE_RADIO,
@@ -156,8 +156,8 @@ public class BmxService {
     return authModel;
   }
 
-  private @NonNull BmxServiceAssetsApiDto extractTuneInAssets() {
-    var icons = createRadioIconsApiDto();
+  private @NonNull BmxServiceAssetsApiDto extractTuneInAssets(String baseUrl) {
+    var icons = createRadioIconsApiDto(baseUrl);
 
     return new BmxServiceAssetsApiDto(
         "#000000",
@@ -166,22 +166,22 @@ public class BmxService {
         "TuneIn");
   }
 
-  private @NonNull BmxServiceIconsApiDto createRadioIconsApiDto() {
+  private @NonNull BmxServiceIconsApiDto createRadioIconsApiDto(String baseUrl) {
     var icons =
         new BmxServiceIconsApiDto(
-            getMonochromeSvgUrl(),
-            getMonochromePngUrl(),
-            getMonochromeSvgUrl(),
-            getMonochromeSvgUrl());
-    icons.setDefaultAlbumArt(getMonochromePngUrl());
+            getMonochromeSvgUrl(baseUrl),
+            getMonochromePngUrl(baseUrl),
+            getMonochromeSvgUrl(baseUrl),
+            getMonochromeSvgUrl(baseUrl));
+    icons.setDefaultAlbumArt(getMonochromePngUrl(baseUrl));
     return icons;
   }
 
   /** Creates the Local Internet Radio (Custom Stations) service definition. */
-  private BmxServiceApiDto createLocalInternetRadioService() {
+  private BmxServiceApiDto createLocalInternetRadioService(String baseUrl) {
     BmxServiceIdApiDto id = new BmxServiceIdApiDto("LOCAL_INTERNET_RADIO", 11);
 
-    var icons = createRadioIconsApiDto();
+    var icons = createRadioIconsApiDto(baseUrl);
 
     BmxServiceAssetsApiDto assets =
         new BmxServiceAssetsApiDto(
@@ -197,7 +197,7 @@ public class BmxService {
         new BmxServiceApiDto(
             assets,
             authModel,
-            urlProperties.baseUrl() + "/core02/svc-bmx-adapter-orion/prod/orion",
+            baseUrl + "/core02/svc-bmx-adapter-orion/prod/orion",
             id,
             List.of(BmxServiceApiDto.StreamTypesEnum.LIVE_RADIO));
     service.setLinks(serviceLinks);
@@ -207,10 +207,10 @@ public class BmxService {
   }
 
   /** Creates the SiriusXM service definition. */
-  private BmxServiceApiDto createSiriusXmService() {
+  private BmxServiceApiDto createSiriusXmService(String baseUrl) {
     BmxServiceIdApiDto id = new BmxServiceIdApiDto("SIRIUSXM_EVEREST", 38);
 
-    BmxServiceAssetsApiDto assets = createSiriusAssets();
+    BmxServiceAssetsApiDto assets = createSiriusAssets(baseUrl);
 
     Map<String, Object> authModel = new HashMap<>();
     authModel.put("loginPageProvider", "BOSE");
@@ -226,8 +226,7 @@ public class BmxService {
         new BmxServiceApiDto(
             assets,
             authModel,
-            urlProperties.baseUrl()
-                + "/core02/svc-bmx-adapter-siriusxm-everest-eco1/prod/live-adapter",
+            baseUrl + "/core02/svc-bmx-adapter-siriusxm-everest-eco1/prod/live-adapter",
             id,
             List.of(
                 BmxServiceApiDto.StreamTypesEnum.LIVE_RADIO,
@@ -240,8 +239,8 @@ public class BmxService {
     return service;
   }
 
-  private @NonNull BmxServiceAssetsApiDto createSiriusAssets() {
-    var icons = createRadioIconsApiDto();
+  private @NonNull BmxServiceAssetsApiDto createSiriusAssets(String baseUrl) {
+    var icons = createRadioIconsApiDto(baseUrl);
 
     BmxServiceAssetsApiDto assets =
         new BmxServiceAssetsApiDto(
@@ -256,10 +255,10 @@ public class BmxService {
   }
 
   /** Creates the Radioplayer service definition. */
-  private BmxServiceApiDto createRadioplayerService() {
+  private BmxServiceApiDto createRadioplayerService(String baseUrl) {
     BmxServiceIdApiDto id = new BmxServiceIdApiDto("RADIOPLAYER", 35);
 
-    BmxServiceAssetsApiDto assets = createRadioplayerAssets();
+    BmxServiceAssetsApiDto assets = createRadioplayerAssets(baseUrl);
 
     Map<String, Object> authModel = new HashMap<>();
     Map<String, Object> anonymousAccount = new HashMap<>();
@@ -272,8 +271,7 @@ public class BmxService {
     serviceLinks.setBmxNavigate(new BmxLinkApiDto("/navigate"));
     // Special token URL pattern for Radioplayer
     serviceLinks.setBmxToken(
-        new BmxLinkApiDto(
-            urlProperties.baseUrl() + "/soundtouch-msp-token-proxy/RADIOPLAYER/token"));
+        new BmxLinkApiDto(baseUrl + "/soundtouch-msp-token-proxy/RADIOPLAYER/token"));
     serviceLinks.setSelf(new BmxLinkApiDto("/"));
 
     BmxServiceApiDto service =
@@ -291,8 +289,8 @@ public class BmxService {
     return service;
   }
 
-  private @NonNull BmxServiceAssetsApiDto createRadioplayerAssets() {
-    var icons = createRadioIconsApiDto();
+  private @NonNull BmxServiceAssetsApiDto createRadioplayerAssets(String baseUrl) {
+    var icons = createRadioIconsApiDto(baseUrl);
 
     return new BmxServiceAssetsApiDto(
         "#cc0033",
@@ -301,12 +299,12 @@ public class BmxService {
         "Radioplayer");
   }
 
-  private @NonNull String getMonochromePngUrl() {
-    return urlProperties.baseUrl() + "/icons/radio-logo-monochrome-small.png";
+  private @NonNull String getMonochromePngUrl(String baseUrl) {
+    return baseUrl + "/icons/radio-logo-monochrome-small.png";
   }
 
-  private @NonNull String getMonochromeSvgUrl() {
-    return urlProperties.baseUrl() + "/icons/radio-logo-monochrome.svg";
+  private @NonNull String getMonochromeSvgUrl(String baseUrl) {
+    return baseUrl + "/icons/radio-logo-monochrome.svg";
   }
 
   /**

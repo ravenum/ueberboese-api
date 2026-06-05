@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Controller implementing BMX (Bose Music Experience) endpoints for streaming radio services.
@@ -30,7 +31,8 @@ public class BmxController implements BmxApi {
     log.info("Getting BMX services registry");
 
     try {
-      BmxServicesResponseApiDto response = bmxService.getBmxServices();
+      String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+      BmxServicesResponseApiDto response = bmxService.getBmxServices(baseUrl);
       return ResponseEntity.ok()
           .header("Content-Type", "application/json")
           .header("Access-Control-Allow-Origin", "*")
